@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import { Button } from '../ui/button';
 import { ModeToggle } from '../elements/toggle-mode';
 import { getOpenaiResponseStream } from '@/model/models'; // Replace with streaming function
-import { CircleSlash, RotateCcw } from 'lucide-react';
+import { CircleSlash, RotateCcw, Star } from 'lucide-react';
 import { Input } from '../ui/input';
 import { ModelOptions } from '../elements/model-options';
 import Markdown from "react-markdown";
@@ -13,6 +13,7 @@ import { useLLMStore } from '@/store/llm-store';
 interface Message {
   text: string;
   sender: 'user' | 'ai';
+  starred?: boolean;
 }
 
 export default function HomePage() {
@@ -39,7 +40,7 @@ export default function HomePage() {
       const data = await response.json();
       console.log("data -->",data)
       if (response.ok) {
-        setMessages((prev) => [...prev, { text: data.systemMessage, sender: 'ai' }]);
+        setMessages((prev) => [...prev, { text: data.systemMessage, sender: 'ai',starred: false, id: data.id }]);
       } else {
         console.error('Failed to save chat history:', data.error);
       }
@@ -62,7 +63,7 @@ export default function HomePage() {
     streamingOptions.current.stop = false;
   
     try {
-      let aiMessage = "";
+      let aiMessage = '';
       let aiMessageAdded = false; // Flag to track if AI message is already added
   
       // Streaming AI response
@@ -72,21 +73,22 @@ export default function HomePage() {
         aiMessage += chunk;
   
         setMessages((prev) => {
+          // Only add new message if we haven't already added the AI message
           const updatedMessages = [...prev];
           const lastMessage = updatedMessages[updatedMessages.length - 1];
   
-          // If the last message is AI and already has text, update it
-          if (lastMessage?.sender === 'ai') {
-            lastMessage.text = aiMessage;
-          } else {
-            // Add a new AI message during streaming only once
-            if (!aiMessageAdded) {
-              updatedMessages.push({ text: aiMessage, sender: 'ai' });
-              aiMessageAdded = true;
-            }
+          if (lastMessage?.sender === 'ai' && aiMessageAdded) {
+            // If the last message is AI and it's already updated, don't add it again
+            return updatedMessages;
           }
   
-          return [...updatedMessages];
+          if (!aiMessageAdded) {
+            // Add a new AI message during streaming only once
+            updatedMessages.push({ text: aiMessage, sender: 'ai' });
+            aiMessageAdded = true;
+          }
+  
+          return updatedMessages;
         });
       });
   
@@ -94,11 +96,12 @@ export default function HomePage() {
       await saveChat(input, aiMessage);
   
     } catch (error) {
-      console.error("Error streaming AI response:", error);
+      console.error('Error streaming AI response:', error);
     } finally {
       setLoading(false);
     }
   };
+  
   
 
   const handleStop = () => {
@@ -111,6 +114,33 @@ export default function HomePage() {
     setInput('');
     streamingOptions.current.stop = false;
   };
+
+  const toggleStar = async (index: number) => {
+    const updatedMessages = [...messages];
+    const message = updatedMessages[index];
+  
+    try {
+      const response = await fetch('/api/star', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: message.id, // Ensure you store and use the message ID
+          isStarred: !message.starred,
+        }),
+      });
+  
+      if (!response.ok) throw new Error('Failed to update starred status');
+  
+      // Update UI only if the API call succeeds
+      message.starred = !message.starred;
+      setMessages(updatedMessages);
+    } catch (error) {
+      console.error('Error updating starred status:', error);
+    }
+  };
+  
 
   return (
     <div className="max-w-7xl relative mx-auto h-[100dvh] flex flex-col justify-center items-center space-y-12">
@@ -128,20 +158,23 @@ export default function HomePage() {
 
       <div className="relative max-w-xl w-full p-4 border rounded-md flex flex-col h-96 overflow-y-auto">
       {messages.map((msg, index) => (
-          <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} my-2`}>
-            <div className={`p-3 rounded-lg max-w-[80%] ${msg.sender === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-300 text-black'}`}>
-              <Markdown className={`${msg.sender === 'user' ? 'text-white' : 'text-black'} prose dark:prose-invert prose-h1:text-xl prose-sm`} remarkPlugins={[remarkGfm]}>
-                {msg.text}
-              </Markdown>
-              {/* Star Button */}
-              <button 
-                className="absolute top-2 right-2"
-              >
-                Star
-              </button>
-            </div>
-          </div>
-        ))}
+  <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} my-2 relative`}>
+    <div className={`p-3 rounded-lg max-w-[80%] ${msg.sender === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-300 text-black'}`}>
+      <Markdown className={`${msg.sender === 'user' ? 'text-white' : 'text-black'} prose dark:prose-invert prose-h1:text-xl prose-sm`} remarkPlugins={[remarkGfm]}>
+        {msg.text}
+      </Markdown>
+
+      {/* Star Button */}
+      <button 
+        className="absolute top-2 right-2"
+        onClick={() => toggleStar(index)}
+      >
+        <Star className={`w-4 h-4 ${msg.starred ? 'text-yellow-500' : 'text-gray-400'}`} />
+      </button>
+    </div>
+  </div>
+))}
+
       </div>
 
       <div className="max-w-xl w-full fixed bottom-5">
