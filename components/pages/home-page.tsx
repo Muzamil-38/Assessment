@@ -23,6 +23,34 @@ export default function HomePage() {
 
   const model = useLLMStore().selectedModel;
 
+  const saveChat = async (user: string, system: string) => {
+    try {
+      const response = await fetch('/api/savechat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userMessage: user,
+          systemMessage: system,
+        }),
+      });
+  
+      const data = await response.json();
+      console.log("data -->",data)
+      if (response.ok) {
+        setMessages((prev) => [...prev, { text: data.systemMessage, sender: 'ai' }]);
+      } else {
+        console.error('Failed to save chat history:', data.error);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+
   const handleSendMessage = async () => {
     if (!input.trim()) return;
   
@@ -35,24 +63,35 @@ export default function HomePage() {
   
     try {
       let aiMessage = "";
+      let aiMessageAdded = false; // Flag to track if AI message is already added
   
+      // Streaming AI response
       await getOpenaiResponseStream(input, (chunk: string) => {
         if (streamingOptions.current.stop) return;
   
         aiMessage += chunk;
+  
         setMessages((prev) => {
           const updatedMessages = [...prev];
           const lastMessage = updatedMessages[updatedMessages.length - 1];
   
+          // If the last message is AI and already has text, update it
           if (lastMessage?.sender === 'ai') {
             lastMessage.text = aiMessage;
           } else {
-            updatedMessages.push({ text: aiMessage, sender: 'ai' });
+            // Add a new AI message during streaming only once
+            if (!aiMessageAdded) {
+              updatedMessages.push({ text: aiMessage, sender: 'ai' });
+              aiMessageAdded = true;
+            }
           }
   
           return [...updatedMessages];
         });
       });
+  
+      // After streaming, save chat history
+      await saveChat(input, aiMessage);
   
     } catch (error) {
       console.error("Error streaming AI response:", error);
@@ -60,6 +99,7 @@ export default function HomePage() {
       setLoading(false);
     }
   };
+  
 
   const handleStop = () => {
     streamingOptions.current.stop = true;
@@ -87,12 +127,18 @@ export default function HomePage() {
       <h1 className="font-bold text-2xl">{model.length ? model : 'Chat with me'}</h1>
 
       <div className="relative max-w-xl w-full p-4 border rounded-md flex flex-col h-96 overflow-y-auto">
-        {messages.map((msg, index) => (
+      {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} my-2`}>
             <div className={`p-3 rounded-lg max-w-[80%] ${msg.sender === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-300 text-black'}`}>
               <Markdown className={`${msg.sender === 'user' ? 'text-white' : 'text-black'} prose dark:prose-invert prose-h1:text-xl prose-sm`} remarkPlugins={[remarkGfm]}>
                 {msg.text}
               </Markdown>
+              {/* Star Button */}
+              <button 
+                className="absolute top-2 right-2"
+              >
+                Star
+              </button>
             </div>
           </div>
         ))}

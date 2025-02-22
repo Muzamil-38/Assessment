@@ -19,12 +19,22 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
-
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+
+# Copy .env file before running any build or generate commands
+COPY .env .env
+
 COPY . .
+
+# Add environment variables for both build and runtime
+ENV NEXT_PUBLIC_OPENAI_API_KEY=${NEXT_PUBLIC_OPENAI_API_KEY}
+ENV OPENAI_API_KEY=${OPENAI_API_KEY}
+
+# Generate Prisma Client
+RUN npx prisma generate  # Add this line to generate the Prisma client
 
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry

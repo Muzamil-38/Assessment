@@ -2,9 +2,10 @@ import OpenAI from "openai";
 import dotenv from "dotenv";
 dotenv.config();
 
+console.log("API Key:", process.env.NEXT_PUBLIC_OPENAI_API_KEY);
 const openai = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true,
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY, // ✅ Use the correct environment variable
+  dangerouslyAllowBrowser: true
 });
 
 export async function getOpenaiResponseStream(userInput: string, onChunk: (chunk: string) => void) {
