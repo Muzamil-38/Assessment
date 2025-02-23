@@ -6,6 +6,6 @@ interface LLMStore {
 }
 
 export const useLLMStore = create<LLMStore>((set) => ({
-    selectedModel: '',
+    selectedModel: 'OpenAI',
     setSelectedModel: (model) => set({ selectedModel: model }),
 }))

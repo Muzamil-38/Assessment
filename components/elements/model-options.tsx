@@ -13,7 +13,7 @@ import { useLLMStore } from "@/store/llm-store"
 
 
 // Modify as needed
-const options = ['deepseek', 'openai', 'Model 3']
+const options = ['OpenAI', 'Deepseek', 'Model 3']
 
 export function ModelOptions() {
   const { selectedModel, setSelectedModel } = useLLMStore()

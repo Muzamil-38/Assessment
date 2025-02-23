@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '../ui/button';
 import { Star, ArrowLeft } from 'lucide-react';
-import { Input } from '../ui/input';
 import Markdown from "react-markdown";
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
