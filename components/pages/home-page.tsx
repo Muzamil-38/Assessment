@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '../ui/button';
 import { ModeToggle } from '../elements/toggle-mode';
-import { getOpenaiResponseStream } from '@/model/models'; // Replace with streaming function
+import { getOpenaiResponse, getOpenaiResponseStream } from '@/model/models'; // Replace with streaming function
 import { CircleSlash, RotateCcw, Star } from 'lucide-react';
 import { Input } from '../ui/input';
 import { ModelOptions } from '../elements/model-options';
@@ -68,43 +68,58 @@ export default function HomePage() {
   
     try {
       let aiMessage = '';
-      let aiMessageAdded = false; // Flag to track if AI message is already added
+      const isStreaming = false; // Toggle for streaming mode
   
-      // Streaming AI response
-      await getOpenaiResponseStream(input, (chunk: string) => {
-        if (streamingOptions.current.stop) return;
+      if (isStreaming) {
+        // Streaming response
+        await getOpenaiResponseStream(input, (chunk: string) => {
+          if (streamingOptions.current.stop) return;
   
-        aiMessage += chunk;
+          aiMessage += chunk;
   
+          // Check if the last message is already AI and has been added
+          setMessages((prev) => {
+            const updatedMessages = [...prev];
+            const lastMessage = updatedMessages[updatedMessages.length - 1];
+  
+            // Only add the message if it’s not already the last AI message
+            if (lastMessage?.sender === 'ai' && lastMessage.text !== aiMessage) {
+              updatedMessages.push({ text: aiMessage, sender: 'ai' });
+            }
+            return updatedMessages;
+          });
+        });
+      } else {
+        // Full response (non-streaming)
+        aiMessage = await getOpenaiResponse(input);
+  
+        // Ensure the AI message is added only once
         setMessages((prev) => {
-          // Only add new message if we haven't already added the AI message
           const updatedMessages = [...prev];
           const lastMessage = updatedMessages[updatedMessages.length - 1];
   
-          if (lastMessage?.sender === 'ai' && aiMessageAdded) {
-            // If the last message is AI and it's already updated, don't add it again
-            return updatedMessages;
-          }
-  
-          if (!aiMessageAdded) {
-            // Add a new AI message during streaming only once
+          // If the last message is the same as the AI message, do not add it again
+          if (lastMessage?.sender === 'ai' && lastMessage.text !== aiMessage) {
             updatedMessages.push({ text: aiMessage, sender: 'ai' });
-            aiMessageAdded = true;
           }
   
           return updatedMessages;
         });
-      });
+      }
   
-      // After streaming, save chat history
+      // Save chat history after response is set
       await saveChat(input, aiMessage);
   
     } catch (error) {
-      console.error('Error streaming AI response:', error);
+      console.error('Error getting AI response:', error);
     } finally {
       setLoading(false);
     }
   };
+  
+  
+  
+  
   
   
 

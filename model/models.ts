@@ -20,3 +20,20 @@ export async function getOpenaiResponseStream(userInput: string, onChunk: (chunk
     if (content) onChunk(content); // Pass each chunk to the callback
   }
 }
+
+export async function getOpenaiResponse(userInput: string) {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini", // Use the desired model here
+      messages: [{ role: "user", content: userInput }],
+      stream: false, // No streaming, full response
+    });
+
+    // Extract the full content from the response
+    const messageContent = response.choices?.[0]?.message?.content || "";
+    return messageContent;
+  } catch (error) {
+    console.error("Error getting full AI response:", error);
+    throw new Error("Failed to get full AI response");
+  }
+}
