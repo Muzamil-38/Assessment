@@ -9,8 +9,10 @@ import { ModelOptions } from '../elements/model-options';
 import Markdown from "react-markdown";
 import remarkGfm from 'remark-gfm';
 import { useLLMStore } from '@/store/llm-store';
+import { useRouter } from 'next/navigation';
 
 interface Message {
+  id?: string;
   text: string;
   sender: 'user' | 'ai';
   starred?: boolean;
@@ -21,6 +23,8 @@ export default function HomePage() {
   const [input, setInput] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const streamingOptions = useRef<{ stop: boolean }>({ stop: false });
+
+  const router = useRouter();
 
   const model = useLLMStore().selectedModel;
 
@@ -151,6 +155,9 @@ export default function HomePage() {
         <Button variant="secondary" onClick={handleRefresh}>
           <RotateCcw className="w-4 h-4" /> Refresh
         </Button>
+        <Button variant="outline" onClick={() => router.push('/star-page')}>
+          <Star className="w-4 h-4" /> Starred Messages
+        </Button>
         <ModeToggle />
       </div>
 
@@ -165,12 +172,15 @@ export default function HomePage() {
       </Markdown>
 
       {/* Star Button */}
+      {
+        msg.sender === 'user'?null:
       <button 
         className="absolute top-2 right-2"
         onClick={() => toggleStar(index)}
       >
         <Star className={`w-4 h-4 ${msg.starred ? 'text-yellow-500' : 'text-gray-400'}`} />
       </button>
+      }
     </div>
   </div>
 ))}
