@@ -6,13 +6,17 @@ services:
       context: .
       dockerfile: Dockerfile
     image: starter
+    depends_on:
+      - db
     ports:
       - "3000:3000"
     env_file:                    
       - .env
     environment:
       - NEXT_PUBLIC_OPENAI_API_KEY=${NEXT_PUBLIC_OPENAI_API_KEY}
-      - OPENAI_API_KEY=${NEXT_PUBLIC_OPENAI_API_KEY}  # ✅ Add this for server-side use
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    entrypoint: >
+      sh -c "npx prisma migrate deploy && npm run dev"
 
   db:
     image: postgres:15-alpine

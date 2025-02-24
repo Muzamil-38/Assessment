@@ -2,7 +2,6 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '../ui/button';
 import { ModeToggle } from '../elements/toggle-mode';
-import { getOpenaiResponse, getOpenaiResponseStream } from '@/model/models'; // Replace with streaming function
 import { CircleSlash, RotateCcw, Star } from 'lucide-react';
 import { Input } from '../ui/input';
 import { ModelOptions } from '../elements/model-options';
@@ -68,54 +67,35 @@ export default function HomePage() {
   
     try {
       let aiMessage = '';
-      const isStreaming = false; // Toggle for streaming mode
   
-      if (isStreaming) {
-        // Streaming response
-        await getOpenaiResponseStream(input, (chunk: string) => {
-          if (streamingOptions.current.stop) return;
+      const response = await fetch("/api/openai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userInput: input }),
+      });
   
-          aiMessage += chunk;
-  
-          // Check if the last message is already AI and has been added
-          setMessages((prev) => {
-            const updatedMessages = [...prev];
-            const lastMessage = updatedMessages[updatedMessages.length - 1];
-  
-            // Only add the message if it’s not already the last AI message
-            if (lastMessage?.sender === 'ai' && lastMessage.text !== aiMessage) {
-              updatedMessages.push({ text: aiMessage, sender: 'ai' });
-            }
-            return updatedMessages;
-          });
-        });
-      } else {
-        // Full response (non-streaming)
-        aiMessage = await getOpenaiResponse(input);
-  
-        // Ensure the AI message is added only once
-        setMessages((prev) => {
-          const updatedMessages = [...prev];
-          const lastMessage = updatedMessages[updatedMessages.length - 1];
-  
-          // If the last message is the same as the AI message, do not add it again
-          if (lastMessage?.sender === 'ai' && lastMessage.text !== aiMessage) {
-            updatedMessages.push({ text: aiMessage, sender: 'ai' });
-          }
-  
-          return updatedMessages;
-        });
+      if (!response.ok) {
+        throw new Error("Failed to get AI response");
       }
   
-      // Save chat history after response is set
-      await saveChat(input, aiMessage);
+      const data = await response.json();
+      aiMessage = data.message;
+  
+      console.log(`aiMessage ---> ${aiMessage}`);
+  
+      // Remove this: setMessages([...prev, { text: aiMessage, sender: "ai" }]);
+      // Instead, AI response will be added inside `saveChat`
+  
+      await saveChat(input, aiMessage); // Ensure message is added only here
   
     } catch (error) {
-      console.error('Error getting AI response:', error);
+      console.error("Error fetching AI response:", error);
     } finally {
       setLoading(false);
     }
   };
+  
+  
   
   
   
